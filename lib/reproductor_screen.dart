@@ -5,14 +5,10 @@ import 'dart:io';
 class ReproductorScreen extends StatefulWidget {
   final File song;
   final AudioPlayer audioPlayer;
-  final List<File> songList;       // Añade estos parámetros
-  final int currentIndex;         // al constructor
 
   const ReproductorScreen({
     required this.song,
     required this.audioPlayer,
-    required this.songList,      // Añadidos aquí
-    required this.currentIndex,  // y aquí
   });
 
   @override
@@ -25,13 +21,22 @@ class _ReproductorScreenState extends State<ReproductorScreen> {
   @override
   void initState() {
     super.initState();
-    widget.audioPlayer.play(DeviceFileSource(widget.song.path));
+    _playSong();
+  }
+
+  Future<void> _playSong() async {
+    await widget.audioPlayer.play(DeviceFileSource(widget.song.path));
+    setState(() => _isPlaying = true);
   }
 
   void _togglePlayPause() {
     setState(() {
       _isPlaying = !_isPlaying;
-      _isPlaying ? widget.audioPlayer.resume() : widget.audioPlayer.pause();
+      if (_isPlaying) {
+        widget.audioPlayer.resume();
+      } else {
+        widget.audioPlayer.pause();
+      }
     });
   }
 
@@ -43,24 +48,18 @@ class _ReproductorScreenState extends State<ReproductorScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(widget.song.path.split('/').last),
-            SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: Icon(Icons.skip_previous),
-                  onPressed: () {}, // Implementar luego
-                ),
-                IconButton(
-                  icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
-                  onPressed: _togglePlayPause,
-                ),
-                IconButton(
-                  icon: Icon(Icons.skip_next),
-                  onPressed: () {}, // Implementar luego
-                ),
-              ],
+            Text(
+              widget.song.path.split('/').last,
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 30),
+            IconButton(
+              icon: Icon(
+                _isPlaying ? Icons.pause : Icons.play_arrow,
+                size: 50,
+              ),
+              onPressed: _togglePlayPause,
             ),
           ],
         ),
