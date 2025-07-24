@@ -21,13 +21,17 @@ class MusicPlayerScreen extends StatefulWidget {
 }
 
 class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer()
+    ..setReleaseMode(ReleaseMode.loop) // Mejor manejo de recursos
+    ..setVolume(0.8); // Volumen moderado para evitar distorsión
+  
   List<File> _songs = [];
   bool _loading = false;
   int? _currentIndex;
   PlayerState _playerState = PlayerState.stopped;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
+  bool _isScanning = false;
 
   @override
   void initState() {
@@ -38,38 +42,54 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   void _setupAudioListeners() {
     _audioPlayer.onPlayerStateChanged.listen((state) {
-      setState(() => _playerState = state);
+      if (mounted) {
+        setState(() => _playerState = state);
+      }
     });
 
     _audioPlayer.onDurationChanged.listen((duration) {
-      setState(() => _duration = duration);
+      if (mounted) {
+        setState(() => _duration = duration);
+      }
     });
 
     _audioPlayer.onPositionChanged.listen((position) {
-      setState(() => _position = position);
+      if (mounted) {
+        setState(() => _position = position);
+      }
     });
 
     _audioPlayer.onPlayerComplete.listen((_) {
-      setState(() {
-        _playerState = PlayerState.stopped;
-        _position = Duration.zero;
-      });
+      if (mounted) {
+        setState(() {
+          _playerState = PlayerState.stopped;
+          _position = Duration.zero;
+        });
+      }
       _nextSong();
     });
   }
 
   Future<void> _requestAudioPermission() async {
-    setState(() => _loading = true);
+    if (mounted) {
+      setState(() => _loading = true);
+    }
     
     final status = await Permission.audio.request();
     if (status.isGranted) {
       await _scanAudioFiles();
     }
 
-    setState(() => _loading = false);
+    if (mounted) {
+      setState(() => _loading = false);
+    }
   }
 
   Future<void> _scanAudioFiles() async {
+    if (mounted) {
+      setState(() => _isScanning = true);
+    }
+    
     final audioExtensions = {'.mp3', '.m4a', '.wav', '.ogg', '.flac', '.aac'};
     final musicDirs = [
       '/storage/emulated/0/Music',
@@ -83,7 +103,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         final dir = Directory(dirPath);
         if (await dir.exists()) {
           await for (final file in dir.list(recursive: true)) {
-            final ext = file.path.toLowerCase().substring(file.path.lastIndexOf('.'));
+            if (!mounted) return; // Si el widget fue eliminado, cancelar
+            final path = file.path.toLowerCase();
+            final ext = path.substring(path.lastIndexOf('.'));
             if (file is File && audioExtensions.contains(ext)) {
               foundSongs.add(file);
             }
@@ -94,35 +116,73 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       }
     }
 
-    setState(() => _songs = foundSongs);
+    if (mounted) {
+      setState(() {
+        _songs = foundSongs;
+        _isScanning = false;
+      });
+    }
   }
 
   Future<void> _playSong(int index) async {
-    final song = _songs[index];
-    setState(() {
-      _currentIndex = index;
-      _playerState = PlayerState.playing;
-      _position = Duration.zero;
-    });
-    await _audioPlayer.play(DeviceFileSource(song.path));
+    try {
+      final song = _songs[index];
+      await _audioPlayer.stop(); // Detener cualquier reproducción actual
+      
+      if (mounted) {
+        setState(() {
+          _currentIndex = index;
+          _playerState = PlayerState.playing;
+          _position = Duration.zero;
+        });
+      }
+      
+      // Configurar el source con buffer optimizado
+      await _audioPlayer.play(
+        DeviceFileSource(song.path),
+        volume: 0.8, // Volumen moderado
+        position: Duration.zero,
+        mode: PlayerMode.mediaPlayer, // Usar el modo más estable
+      );
+    } catch (e) {
+      debugPrint('Error al reproducir: $e');
+      if (mounted) {
+        setState(() {
+          _playerState = PlayerState.stopped;
+        });
+      }
+    }
   }
 
   Future<void> _pause() async {
     await _audioPlayer.pause();
-    setState(() => _playerState = PlayerState.paused);
+    if (mounted) {
+      setState(() => _playerState = PlayerState.paused);
+    }
   }
 
   Future<void> _resume() async {
-    await _audioPlayer.resume();
-    setState(() => _playerState = PlayerState.playing);
+    try {
+      await _audioPlayer.resume();
+      if (mounted) {
+        setState(() => _playerState = PlayerState.playing);
+      }
+    } catch (e) {
+      // Si hay error al reanudar, intentar reproducir de nuevo
+      if (_currentIndex != null) {
+        await _playSong(_currentIndex!);
+      }
+    }
   }
 
   Future<void> _stop() async {
     await _audioPlayer.stop();
-    setState(() {
-      _playerState = PlayerState.stopped;
-      _position = Duration.zero;
-    });
+    if (mounted) {
+      setState(() {
+        _playerState = PlayerState.stopped;
+        _position = Duration.zero;
+      });
+    }
   }
 
   Future<void> _seek(Duration position) async {
@@ -166,7 +226,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Nombre de la canción actual
           if (_currentIndex != null)
             Padding(
               padding: EdgeInsets.only(bottom: 8),
@@ -181,7 +240,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               ),
             ),
           
-          // Barra de progreso
           Row(
             children: [
               Text(
@@ -205,7 +263,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             ],
           ),
           
-          // Controles principales
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -251,6 +308,20 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
+  Widget _buildRefreshButton() {
+    return IconButton(
+      icon: _isScanning 
+          ? SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(Icons.refresh),
+      onPressed: _isScanning ? null : _scanAudioFiles,
+      tooltip: 'Buscar nuevas canciones',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -258,6 +329,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         title: Text('Reproductor de Audio'),
         centerTitle: true,
         elevation: 0,
+        actions: [_buildRefreshButton()],
       ),
       body: _loading
           ? Center(child: CircularProgressIndicator())
