@@ -5,38 +5,32 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'dart:async';
 
+// Punto de entrada principal de la aplicación. Siempre inicia en modo oscuro.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final prefs = await SharedPreferences.getInstance();
-  final isDarkMode = prefs.getBool('isDarkMode') ?? false;
-  runApp(MyApp(isDarkMode: isDarkMode));
+  runApp(const MyApp());
 }
 
+// Widget principal que configura el tema oscuro y la pantalla inicial del reproductor.
 class MyApp extends StatelessWidget {
-  final bool isDarkMode;
-  const MyApp({super.key, required this.isDarkMode});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: MusicPlayerScreen(isDarkMode: isDarkMode),
+      home: const MusicPlayerScreen(),
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.light().copyWith(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue, brightness: Brightness.light),
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      darkTheme: ThemeData.dark().copyWith(
+      theme: ThemeData.dark().copyWith(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue, brightness: Brightness.dark),
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
     );
   }
 }
 
+// Pantalla principal del reproductor musical.
 class MusicPlayerScreen extends StatefulWidget {
-  final bool isDarkMode;
-  const MusicPlayerScreen({super.key, required this.isDarkMode});
+  const MusicPlayerScreen({super.key});
 
   @override
   _MusicPlayerScreenState createState() => _MusicPlayerScreenState();
@@ -57,15 +51,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   bool _isScanning = false;
-  bool _isDarkMode = false;
-  bool _isRandomMode = false;
+    bool _isRandomMode = false;
   Set<String> _favorites = {};
   final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _isDarkMode = widget.isDarkMode;
     _loadPreferences();
     _createAudioPlayer();
     _requestAudioPermission();
@@ -107,7 +99,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   Future<void> _savePreferences() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isDarkMode', _isDarkMode);
     await prefs.setBool('isRandomMode', _isRandomMode);
     await prefs.setStringList('favorites', _favorites.toList());
   }
@@ -346,13 +337,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _savePreferences();
   }
 
-  void _toggleTheme() {
-    setState(() {
-      _isDarkMode = !_isDarkMode;
-    });
-    _savePreferences();
-  }
-
+  
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     final minutes = twoDigits(duration.inMinutes.remainder(60));
@@ -372,6 +357,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   Widget _buildPlayerControls() {
+    // Colores adaptados para modo oscuro
+    final Color mainButtonColor = Colors.white;
+    final Color accentButtonColor = Colors.blueAccent.shade100;
+    final Color sliderActiveColor = Colors.blueAccent.shade100;
+    final Color sliderInactiveColor = Colors.white24;
+    final Color iconFavorite = Colors.redAccent.shade200;
+    final Color iconRandomActive = Colors.blueAccent.shade100;
+    final Color iconRandomInactive = Colors.white38;
+    final Color textColor = Colors.white70;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -399,16 +394,17 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       _favorites.contains(_filteredSongs[_currentIndex!].path)
                         ? Icons.favorite
                         : Icons.favorite_border,
-                      color: Colors.red,
+                      color: iconFavorite,
                     ),
                     onPressed: _toggleFavorite,
                   ),
                   Expanded(
                     child: Text(
                       _cleanSongName(_filteredSongs[_currentIndex!].path.split('/').last),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
+                        color: textColor,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -417,7 +413,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   IconButton(
                     icon: Icon(
                       _isRandomMode ? Icons.shuffle : Icons.shuffle_on,
-                      color: _isRandomMode ? Colors.blue : Colors.grey,
+                      color: _isRandomMode ? iconRandomActive : iconRandomInactive,
                     ),
                     onPressed: _toggleRandomMode,
                   ),
@@ -429,7 +425,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             children: [
               Text(
                 _formatDuration(_position),
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: textColor),
               ),
               Expanded(
                 child: Slider(
@@ -441,13 +437,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   onChanged: _duration.inSeconds > 0
                       ? (value) => _seek(Duration(seconds: value.toInt()))
                       : null,
-                  activeColor: Theme.of(context).primaryColor,
-                  inactiveColor: Colors.grey[300],
+                  activeColor: sliderActiveColor,
+                  inactiveColor: sliderInactiveColor,
                 ),
               ),
               Text(
                 _formatDuration(_duration),
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: textColor),
               ),
             ],
           ),
@@ -456,17 +452,17 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               IconButton(
-                icon: Icon(Icons.fast_rewind, size: 30, color: Theme.of(context).primaryColor),
+                icon: Icon(Icons.fast_rewind, size: 30, color: mainButtonColor),
                 onPressed: _previousSong,
                 tooltip: 'Canción anterior',
               ),
               Container(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor,
+                  color: accentButtonColor,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context).primaryColor.withOpacity(0.3),
+                      color: accentButtonColor.withOpacity(0.3),
                       blurRadius: 8,
                       spreadRadius: 2,
                     ),
@@ -477,7 +473,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     _playerState == PlayerState.playing 
                         ? Icons.pause 
                         : Icons.play_arrow,
-                    color: Colors.white,
+                    color: Colors.black,
                     size: 36,
                   ),
                   onPressed: _playerState == PlayerState.playing 
@@ -486,7 +482,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.fast_forward, size: 30, color: Theme.of(context).primaryColor),
+                icon: Icon(Icons.fast_forward, size: 30, color: mainButtonColor),
                 onPressed: _nextSong,
                 tooltip: 'Siguiente canción',
               ),
@@ -514,17 +510,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-  Widget _buildThemeToggleButton() {
-    return IconButton(
-      icon: Icon(
-        _isDarkMode ? Icons.light_mode : Icons.dark_mode,
-        color: Colors.white,
-      ),
-      onPressed: _toggleTheme,
-      tooltip: 'Cambiar tema',
-    );
-  }
-
+  
   Widget _buildPlayingIndicator() {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -558,7 +544,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         centerTitle: true,
         elevation: 0,
         actions: [
-          _buildThemeToggleButton(),
           _buildRefreshButton(),
         ],
       ),
