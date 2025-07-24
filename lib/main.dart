@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
-
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
@@ -11,6 +11,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       home: MusicPlayerScreen(),
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+      ),
     );
   }
 }
@@ -22,8 +26,8 @@ class MusicPlayerScreen extends StatefulWidget {
 
 class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer()
-    ..setReleaseMode(ReleaseMode.loop) // Mejor manejo de recursos
-    ..setVolume(0.8); // Volumen moderado para evitar distorsión
+    ..setReleaseMode(ReleaseMode.loop)
+    ..setVolume(0.8);
   
   List<File> _songs = [];
   bool _loading = false;
@@ -103,7 +107,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         final dir = Directory(dirPath);
         if (await dir.exists()) {
           await for (final file in dir.list(recursive: true)) {
-            if (!mounted) return; // Si el widget fue eliminado, cancelar
+            if (!mounted) return;
             final path = file.path.toLowerCase();
             final ext = path.substring(path.lastIndexOf('.'));
             if (file is File && audioExtensions.contains(ext)) {
@@ -127,7 +131,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   Future<void> _playSong(int index) async {
     try {
       final song = _songs[index];
-      await _audioPlayer.stop(); // Detener cualquier reproducción actual
+      await _audioPlayer.stop();
       
       if (mounted) {
         setState(() {
@@ -137,12 +141,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         });
       }
       
-      // Configurar el source con buffer optimizado
       await _audioPlayer.play(
         DeviceFileSource(song.path),
-        volume: 0.8, // Volumen moderado
+        volume: 0.8,
         position: Duration.zero,
-        mode: PlayerMode.mediaPlayer, // Usar el modo más estable
+        mode: PlayerMode.mediaPlayer,
       );
     } catch (e) {
       debugPrint('Error al reproducir: $e');
@@ -168,20 +171,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         setState(() => _playerState = PlayerState.playing);
       }
     } catch (e) {
-      // Si hay error al reanudar, intentar reproducir de nuevo
       if (_currentIndex != null) {
         await _playSong(_currentIndex!);
       }
-    }
-  }
-
-  Future<void> _stop() async {
-    await _audioPlayer.stop();
-    if (mounted) {
-      setState(() {
-        _playerState = PlayerState.stopped;
-        _position = Duration.zero;
-      });
     }
   }
 
@@ -208,12 +200,23 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     return '$minutes:$seconds';
   }
 
+  String _cleanSongName(String fileName) {
+    final nameWithoutExtension = fileName.replaceAll(RegExp(r'\.(mp3|m4a|wav|ogg|flac|aac)$'), '');
+    return nameWithoutExtension
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' - ')
+        .replaceAll('[', ' (')
+        .replaceAll(']', ') ')
+        .replaceAll('  ', ' ')
+        .trim();
+  }
+
   Widget _buildPlayerControls() {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
@@ -229,14 +232,22 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           if (_currentIndex != null)
             Padding(
               padding: EdgeInsets.only(bottom: 8),
-              child: Text(
-                _songs[_currentIndex!].path.split('/').last,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: Row(
+                children: [
+                  Icon(Icons.music_note, size: 16, color: Theme.of(context).primaryColor),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _cleanSongName(_songs[_currentIndex!].path.split('/').last),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ),
           
@@ -244,7 +255,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             children: [
               Text(
                 _formatDuration(_position),
-                style: TextStyle(fontSize: 12),
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
               Expanded(
                 child: Slider(
@@ -252,13 +263,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   min: 0,
                   max: _duration.inSeconds.toDouble(),
                   onChanged: (value) => _seek(Duration(seconds: value.toInt())),
-                  activeColor: Colors.blue,
-                  inactiveColor: Colors.grey,
+                  activeColor: Theme.of(context).primaryColor,
+                  inactiveColor: Colors.grey[300],
                 ),
               ),
               Text(
                 _formatDuration(_duration),
-                style: TextStyle(fontSize: 12),
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
           ),
@@ -267,17 +278,17 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               IconButton(
-                icon: Icon(Icons.skip_previous, size: 28),
+                icon: Icon(Icons.fast_rewind, size: 30, color: Theme.of(context).primaryColor),
                 onPressed: _previousSong,
-                iconSize: 32,
+                tooltip: 'Canción anterior',
               ),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.blue,
+                  color: Theme.of(context).primaryColor,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.blue.withOpacity(0.3),
+                      color: Theme.of(context).primaryColor.withOpacity(0.3),
                       blurRadius: 8,
                       spreadRadius: 2,
                     ),
@@ -289,17 +300,17 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         ? Icons.pause 
                         : Icons.play_arrow,
                     color: Colors.white,
+                    size: 36,
                   ),
                   onPressed: _playerState == PlayerState.playing 
                       ? _pause 
                       : _resume,
-                  iconSize: 36,
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.skip_next, size: 28),
+                icon: Icon(Icons.fast_forward, size: 30, color: Theme.of(context).primaryColor),
                 onPressed: _nextSong,
-                iconSize: 32,
+                tooltip: 'Siguiente canción',
               ),
             ],
           ),
@@ -314,11 +325,32 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           ? SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
             )
-          : Icon(Icons.refresh),
+          : Icon(Icons.refresh, size: 26, color: Colors.white),
       onPressed: _isScanning ? null : _scanAudioFiles,
       tooltip: 'Buscar nuevas canciones',
+    );
+  }
+
+  Widget _buildPlayingIndicator() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_playerState == PlayerState.playing)
+          Icon(Icons.graphic_eq, color: Colors.blue, size: 20),
+        SizedBox(width: 8),
+        Icon(
+          _playerState == PlayerState.playing
+              ? Icons.pause
+              : Icons.play_arrow,
+          color: Theme.of(context).primaryColor,
+          size: 24,
+        ),
+      ],
     );
   }
 
@@ -326,39 +358,102 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Reproductor de Audio'),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.music_note, color: Colors.white),
+            SizedBox(width: 10),
+            Text('Reproductor Musical'),
+          ],
+        ),
         centerTitle: true,
         elevation: 0,
         actions: [_buildRefreshButton()],
       ),
       body: _loading
-          ? Center(child: CircularProgressIndicator())
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 10),
+                  Text('Cargando canciones...'),
+                ],
+              ),
+            )
           : _songs.isEmpty
-              ? Center(child: Text('No se encontraron archivos de audio'))
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.music_off, size: 50, color: Colors.grey),
+                      SizedBox(height: 20),
+                      Text('No se encontraron canciones'),
+                      SizedBox(height: 10),
+                      ElevatedButton.icon(
+                        icon: Icon(Icons.search),
+                        label: Text('Buscar canciones'),
+                        onPressed: _scanAudioFiles,
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
               : ListView.builder(
                   itemCount: _songs.length,
                   itemBuilder: (context, index) {
                     final song = _songs[index];
-                    return ListTile(
-                      title: Text(
-                        song.path.split('/').last,
-                        style: TextStyle(
-                          fontWeight: _currentIndex == index 
-                              ? FontWeight.bold 
-                              : FontWeight.normal,
-                        ),
+                    return Card(
+                      margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      onTap: () => _playSong(index),
-                      selected: _currentIndex == index,
-                      selectedTileColor: Colors.blue.withOpacity(0.1),
-                      trailing: _currentIndex == index
-                          ? Icon(
-                              _playerState == PlayerState.playing
-                                  ? Icons.equalizer
-                                  : Icons.pause,
-                              color: Colors.blue,
-                            )
-                          : null,
+                      color: _currentIndex == index 
+                          ? Theme.of(context).primaryColor.withOpacity(0.1) 
+                          : Theme.of(context).cardColor,
+                      child: ListTile(
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _currentIndex == index 
+                                ? Theme.of(context).primaryColor.withOpacity(0.2) 
+                                : Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.music_note,
+                            color: _currentIndex == index 
+                                ? Theme.of(context).primaryColor 
+                                : Colors.grey[600],
+                          ),
+                        ),
+                        title: Text(
+                          _cleanSongName(song.path.split('/').last),
+                          style: TextStyle(
+                            fontWeight: _currentIndex == index 
+                                ? FontWeight.bold 
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Music',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        onTap: () => _playSong(index),
+                        trailing: _currentIndex == index
+                            ? _buildPlayingIndicator()
+                            : Icon(
+                                Icons.play_arrow,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                      ),
                     );
                   },
                 ),
