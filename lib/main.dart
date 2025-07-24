@@ -5,13 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'dart:async';
 
-// Punto de entrada principal de la aplicación. Siempre inicia en modo oscuro.
+// Inicializa la aplicación y ejecuta el widget principal
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
-
-// Widget principal que configura el tema oscuro y la pantalla inicial del reproductor.
+// Widget principal de la aplicación, configura el tema oscuro y la pantalla inicial
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -28,7 +27,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Pantalla principal del reproductor musical.
+// Pantalla principal del reproductor de música
 class MusicPlayerScreen extends StatefulWidget {
   const MusicPlayerScreen({super.key});
 
@@ -36,6 +35,7 @@ class MusicPlayerScreen extends StatefulWidget {
   _MusicPlayerScreenState createState() => _MusicPlayerScreenState();
 }
 
+// Estado y lógica del reproductor de música
 class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   AudioPlayer? _audioPlayer;
   StreamSubscription<PlayerState>? _playerStateSub;
@@ -63,6 +63,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _requestAudioPermission();
   }
 
+  // Crea y configura el reproductor de audio
   void _createAudioPlayer() {
     _audioPlayer = AudioPlayer()
       ..setReleaseMode(ReleaseMode.loop)
@@ -78,6 +79,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _setupAudioListeners();
   }
 
+  // Cancela las suscripciones a los eventos del reproductor
   void _cancelAudioListeners() {
     _playerStateSub?.cancel();
     _durationSub?.cancel();
@@ -89,6 +91,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _completeSub = null;
   }
 
+  // Carga las preferencias guardadas del usuario
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -97,12 +100,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     });
   }
 
+  // Guarda las preferencias del usuario
   Future<void> _savePreferences() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isRandomMode', _isRandomMode);
     await prefs.setStringList('favorites', _favorites.toList());
   }
 
+  // Guarda la última canción reproducida y su posición
   Future<void> _saveLastPlayed() async {
     if (_currentIndex != null) {
       final prefs = await SharedPreferences.getInstance();
@@ -111,6 +116,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
+  // Carga la última canción reproducida y su posición
   Future<void> _loadLastPlayed() async {
     final prefs = await SharedPreferences.getInstance();
     final lastIndex = prefs.getInt('lastIndex');
@@ -125,6 +131,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
+  // Configura los listeners para los eventos del reproductor
   void _setupAudioListeners() {
     if (_audioPlayer == null) return;
     _cancelAudioListeners();
@@ -154,6 +161,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     });
   }
 
+  // Solicita permisos de audio y escanea archivos si se otorgan
   Future<void> _requestAudioPermission() async {
     if (mounted) {
       setState(() => _loading = true);
@@ -169,6 +177,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
+  // Busca archivos de audio en los directorios comunes del dispositivo
   Future<void> _scanAudioFiles() async {
     if (mounted) {
       setState(() => _isScanning = true);
@@ -213,6 +222,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
+  // Filtra la lista de canciones según la búsqueda del usuario
   void _filterSongs(String query) {
     setState(() {
       _filteredSongs = _songs.where((song) => 
@@ -227,6 +237,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     });
   }
 
+  // Reproduce la canción seleccionada por el usuario
   Future<void> _playSong(int index) async {
     try {
       final song = _filteredSongs[index];
@@ -260,6 +271,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
+  // Pausa la reproducción actual
   Future<void> _pause() async {
     if (_audioPlayer != null) {
       await _audioPlayer!.pause();
@@ -273,11 +285,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     await _saveLastPlayed();
   }
 
+  // Reanuda la reproducción de la canción actual
   Future<void> _resume() async {
     if (_currentIndex == null) return;
     await _playSong(_currentIndex!);
   }
 
+  // Permite saltar a una posición específica de la canción
   Future<void> _seek(Duration position) async {
     if (_audioPlayer != null) {
       await _audioPlayer!.seek(position);
@@ -285,6 +299,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
+  // Avanza a la siguiente canción (o aleatoria si está activado)
   void _nextSong() {
     if (_currentIndex == null || _filteredSongs.isEmpty) return;
     
@@ -298,6 +313,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _playSong(nextIndex);
   }
 
+  // Retrocede a la canción anterior (o aleatoria si está activado)
   void _previousSong() {
     if (_currentIndex == null || _filteredSongs.isEmpty) return;
     
@@ -311,11 +327,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _playSong(prevIndex);
   }
 
+  // Obtiene un índice aleatorio para la reproducción aleatoria
   int _getRandomIndex() {
     final random = DateTime.now().millisecond % _filteredSongs.length;
     return random != _currentIndex ? random : _getRandomIndex();
   }
 
+  // Activa o desactiva el modo aleatorio
   void _toggleRandomMode() {
     setState(() {
       _isRandomMode = !_isRandomMode;
@@ -323,6 +341,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _savePreferences();
   }
 
+  // Marca o desmarca la canción actual como favorita
   void _toggleFavorite() {
     if (_currentIndex == null) return;
     
@@ -338,6 +357,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   
+  // Formatea la duración en minutos y segundos
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     final minutes = twoDigits(duration.inMinutes.remainder(60));
@@ -345,6 +365,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     return '$minutes:$seconds';
   }
 
+  // Limpia y formatea el nombre del archivo de la canción para mostrarlo
   String _cleanSongName(String fileName) {
     final nameWithoutExtension = fileName.replaceAll(RegExp(r'\.(mp3|m4a|wav|ogg|flac|aac)$'), '');
     return nameWithoutExtension
@@ -356,6 +377,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         .trim();
   }
 
+  // Construye los controles de reproducción y la barra de progreso
   Widget _buildPlayerControls() {
     // Colores adaptados para modo oscuro
     final Color mainButtonColor = Colors.white;
@@ -493,6 +515,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
+  // Botón para refrescar y buscar nuevas canciones en el dispositivo
   Widget _buildRefreshButton() {
     return IconButton(
       icon: _isScanning 
@@ -511,6 +534,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   
+  // Indicador visual de la canción en reproducción
   Widget _buildPlayingIndicator() {
     return Row(
       mainAxisSize: MainAxisSize.min,
