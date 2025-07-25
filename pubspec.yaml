@@ -17,6 +17,7 @@ dependencies:
   material_design_icons_flutter: ^5.0.6595 # Iconos adicionales
   flutter_local_notifications: ^17.0.0 # Notificaciones locales
   shared_preferences: ^2.2.2 # Almacenamiento local de preferencias
+  
 dev_dependencies: #paquete oficial de testing de Flutter
   flutter_test:
     sdk: flutter
